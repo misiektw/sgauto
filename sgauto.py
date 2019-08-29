@@ -19,6 +19,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         inimsg=self.loadSet(self.uspath+'/sgauto.cfg')
         self.timer = QtCore.QTimer()
         self.timer.setInterval(self.SET['Interval'])
+        self.sbInter.setValue(self.SET['Interval']/1000)
         self.timer.timeout.connect(self.timer_timeout)
         self.already_processing=False
         self.force_proc=False
@@ -39,6 +40,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             self.SET={'SvPaths':{},'BakPath':'','Interval':2000,'LastTS':0, 'AddFilesLast':''}
             return 'Add new files to backup and choose storage folder. Press Start to begin monitoring.'
         else:
+            print("loadSet:", self.SET)
             while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)
             self.populate_lwSGPaths(self.SET['SvPaths'].keys(), init=True)
             self.populate_tabFList(self.SET['BakPath'])
@@ -64,9 +66,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         self.lwStatus.scrollToBottom()
         
     def process_files(self,sgfList,bakPath):
-        print("process_files got:")
-        print(sgfList)
-        print(bakPath)
+        #print("process_files got:", sgfList, bakPath)
         if self.already_processing==True:
             self.logst('Already processing files. Skipping this cycle. Consider setting longer interval.')
         else:
@@ -91,7 +91,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             try:
                 pmtime=os.path.getmtime(plik)
             except WindowsError:
-                self.logst('Windows error on {} modify time! Skipping this turn.'.format(basename(plik)))
+                self.logst('System error on {} modify time! Skipping this turn.'.format(basename(plik)))
                 return False
             if pmtime > self.SET['LastTS'] or self.force_proc:
                 if self.force_proc:
@@ -99,7 +99,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
                 else:  
                     self.logst('File %s changed. Processing...' % basename(plik))
                 pf = self.process_files(self.SET['SvPaths'],self.SET['BakPath'])
-                print("process files returned ", pf)
+                #print("process files returned ", pf)
                 fname, tstamp, curdate = pf
                 self.SET['LastTS']=tstamp
                 self.leTStamp.setText(str(tstamp))
@@ -160,7 +160,6 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         while (self.tabFList.rowCount()): self.tabFList.removeRow(0)
         self.leBakPath.setText(bp)
         for _,_,bakfiles in os.walk(bp):
-            print(bakfiles)
             for file in bakfiles:
                if file.rfind('.sgauto.zip')>0:
                  ts=os.path.getmtime(bp+'/'+file)
@@ -222,7 +221,12 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             path=QtWidgets.QFileDialog.getSaveFileName(self,'Select settings file','',filter)[0]
         if len(path)>0:
             self.saveSet(path)
-
+    
+    @QtCore.pyqtSlot(int)
+    def on_sbInter_valueChanged(self, interval):
+        #print('Interval changed:', interval)
+        self.SET['Interval'] = interval*1000
+        self.timer.setInterval(self.SET['Interval'])
             
     def closeEvent(self, ev):
         if QMessageBox.Yes == QMessageBox.question(self, 'Are you sure?', 
