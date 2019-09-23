@@ -16,7 +16,8 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         super(SGAuto, self).__init__(parent)
         self.setupUi(self)
         self.uspath=os.path.expanduser('~')
-        inimsg=self.loadSet(self.uspath+'/sgauto.cfg')
+        self.inipath=os.path.join(self.uspath,'sgauto.cfg')
+        inimsg=self.loadSet(self.inipath)
         self.timer = QtCore.QTimer()
         self.timer.setInterval(self.SET['Interval'])
         self.sbInter.setValue(self.SET['Interval']/1000)
@@ -41,7 +42,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             return 'Add new files to backup and choose storage folder. Press Start to begin monitoring.'
         else:
             print("loadSet:", self.SET)
-            while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)
+            while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)  #clear monitor file list
             self.populate_lwSGPaths(self.SET['SvPaths'].keys(), init=True)
             self.populate_tabFList(self.SET['BakPath'])
             return 'Press Start to begin monitoring current files.'
@@ -90,7 +91,8 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         for plik in self.SET['SvPaths'].keys():
             try:
                 pmtime=os.path.getmtime(plik)
-            except WindowsError:
+            except Exception as e:
+                self.logst('Got exception from mtime {}.'.format(str(e)))
                 self.logst('System error on {} modify time! Skipping this turn.'.format(basename(plik)))
                 return False
             if pmtime > self.SET['LastTS'] or self.force_proc:
@@ -124,18 +126,26 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             self.SET['SvPaths'].pop(entry)
             print(self.SET['SvPaths'])
         
-    def populate_lwSGPaths(self,paths,init=False):
+    def populate_lwSGPaths(self,paths, init=False):
         print('populate_lwSGPaths got:', paths)
         count=0
-        for path in paths:
+        plist=list(paths)
+        for path in plist:
             if path not in self.SET['SvPaths'].keys() or init:
-                self.SET['SvPaths'][path]=os.path.getmtime(path)
-                self.lwSGPaths.addItem(path)
-                count=count+1
+                try:
+                    mtime=os.path.getmtime(path)
+                except FileNotFoundError:
+                    self.logst('%s not found. Removing from list.' % path)
+                    self.SET['SvPaths'].pop(path)
+                else:
+                    self.SET['SvPaths'][path]=mtime
+                    self.lwSGPaths.addItem(path)
+                    count=count+1
+
         if count:
             self.logst('Added %i new file(s).' % count)
             self.force_proc=True
-            
+        print('SvPaths after populate',self.SET['SvPaths'])    
             
     @QtCore.pyqtSlot()
     def on_bAddFiles_clicked(self):
@@ -186,7 +196,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         if self.bStart.isChecked():
             self.bStartStyle=self.bStart.styleSheet()
             self.bStart.setStyleSheet('background-color: red')
-            self.saveSet(self.uspath+'/sgauto.cfg')
+            self.saveSet(self.inipath)
             self.timer.start()
             self.logst('Monitoring selected files every %d seconds.' % int(self.SET['Interval']/1000))
             self.bStart.setText('Stop')
