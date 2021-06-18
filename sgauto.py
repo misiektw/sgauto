@@ -1,31 +1,32 @@
 #coding=utf8
 import os, sys, zipfile, time, json, datetime
 from PyQt5 import QtCore, QtWidgets, uic
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox # pylint: disable=no-name-in-module
 from os.path import basename
 
 __DEBUG__=True
-
-#import sgauto_ui
-#class SGAuto(QtWidgets.QDialog, sgauto_ui.Ui_Dialog):
+__VERSION__ = '0.9b'
 
 FORM_CLASS, WID_CLASS = uic.loadUiType(os.path.join(
             os.path.dirname(__file__),'sgauto.ui'))
+
 class SGAuto(WID_CLASS, FORM_CLASS):
     def __init__(self, parent=None):
         super(SGAuto, self).__init__(parent)
         self.setupUi(self)
+        self.setWindowTitle('SGAuto {} {} (C) misiektw(at)gmail.com'.format(__VERSION__,' '*50))
         self.uspath=os.path.expanduser('~')
         self.inipath=os.path.join(self.uspath,'sgauto.cfg')
         inimsg=self.loadSet(self.inipath)
         self.timer = QtCore.QTimer()
         self.timer.setInterval(self.SET['Interval'])
-        self.sbInter.setValue(self.SET['Interval']/1000)
+        self.sbInter.setValue(int(self.SET['Interval']/1000))
         self.timer.timeout.connect(self.timer_timeout)
         self.already_processing=False
         self.force_proc=False
         self.logst('Application initialized. %s' % inimsg)
-        self.logst('Any changes will NOT be saved until Start is pressed!')
+        self.logst('You can Add Files to monitor, and select Backup folder.')
+        self.logst('Any changes will NOT be saved until Start button is pressed!')
     
     def loadSet(self,path):
         try:
@@ -67,13 +68,11 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         self.lwStatus.scrollToBottom()
         
     def process_files(self,sgfList,bakPath):
-        #print("process_files got:", sgfList, bakPath)
         if self.already_processing==True:
             self.logst('Already processing files. Skipping this cycle. Consider setting longer interval.')
         else:
-            tstamp=time.time()
-            #curdate=time.strftime('%c')
-            curdate=datetime.datetime.fromtimestamp(int(tstamp))
+            tstamp=round(time.time())
+            curdate=datetime.datetime.fromtimestamp(tstamp)
             self.already_processing=True
             print(tstamp, curdate)
             zipfname='sg'+str(tstamp)+'.sgauto.zip'
@@ -112,7 +111,16 @@ class SGAuto(WID_CLASS, FORM_CLASS):
     def enableWidgets(self,enable):
         for w in [ self.bAddFiles, self.bRemove, self.bClear, self.bBakPath, self.sbInter, self.bLoadSet, self.bSaveSet ]:
             w.setEnabled(enable)
-            
+    
+    def on_tabFList_cellChanged(self, row, col):
+        if self.tabFList.item(row,3):
+            name = self.tabFList.item(row,2).text()
+            comment = self.tabFList.item(row,3).text()
+            path = self.SET['BakPath']
+            if len(comment)>0:
+                with open(os.path.join(path,name[:-4]+'.comm.txt'), 'w') as comfile:
+                    comfile.write(comment)
+
     @QtCore.pyqtSlot()
     def on_bRemove_clicked(self):
         lob=self.lwSGPaths
@@ -157,27 +165,33 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             self.SET['AddFilesLast']=os.path.dirname(paths[0])
             self.populate_lwSGPaths(paths)
     
-    def add_tabFList(self, ts, dt, file):
+    def add_tabFList(self, ts, dt, file, comment=''):
         tab, wI = self.tabFList, QtWidgets.QTableWidgetItem
         tab.insertRow(tab.rowCount())
         tab.setItem(tab.rowCount()-1,0,wI('%.0f' % ts)) #Timestamp
         tab.setItem(tab.rowCount()-1,1,wI(str(dt))) #Date
         tab.setItem(tab.rowCount()-1,2,wI(file)) #Filename
+        tab.setItem(tab.rowCount()-1,3,wI(comment)) #Comment
         tab.resizeColumnsToContents()
         tab.scrollToBottom()
 
     def populate_tabFList(self, bp):
         while (self.tabFList.rowCount()): self.tabFList.removeRow(0)
+        self.tabFList.blockSignals(True)
         self.leBakPath.setText(bp)
         for _,_,bakfiles in os.walk(bp):
             for file in bakfiles:
                if file.rfind('.sgauto.zip')>0:
                  ts=os.path.getmtime(bp+'/'+file)
-                 #dt=time.ctime(ts)
                  dt=datetime.datetime.fromtimestamp(int(ts))
-                 self.add_tabFList(ts,dt,file)
+                 try:
+                     with open(os.path.join(bp, file[:-4]+'.comm.txt')) as comfile: comment= comfile.read()
+                 except FileNotFoundError: comment = ''
+                 self.add_tabFList(ts,dt,file, comment)
                  self.leTStamp.setText(str(ts))
-    
+            break   #os.walk is generator, break after first yield gives only top dir
+        self.tabFList.blockSignals(False)
+
     @QtCore.pyqtSlot()
     def on_bBakPath_clicked(self):
         prevbp=self.SET['BakPath']
@@ -211,6 +225,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
     def on_bClear_clicked(self):
         if self.yesno():
             while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)
+            self.SET['SvPaths'].clear()
 
     @QtCore.pyqtSlot()
     def on_bLoadSet_clicked(self):
@@ -244,9 +259,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             super(SGAuto, self).closeEvent(ev)
         else:
             ev.ignore()
-    def keyPressEvent(self, k):
-        print('Key pressed {}'.format(k.key()))
-        
+
 
 if __name__ == "__main__":
     import sys
