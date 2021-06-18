@@ -1,4 +1,4 @@
-#!/bin/python
+#!/bin/python3
 '''
     SGAuto (https://github.com/misiektw)
     copyright (c) 2016 Misiek Twardowski
@@ -23,13 +23,13 @@ from PyQt5 import QtCore, QtWidgets, uic
 from PyQt5.QtWidgets import QMessageBox # pylint: disable=no-name-in-module
 from os.path import basename
 
-__DEBUG__=True
+__DEBUG__ = False
 __VERSION__ = '0.9b'
 
-FORM_CLASS, WID_CLASS = uic.loadUiType(os.path.join(
+FORM_CLASS, WND_CLASS = uic.loadUiType(os.path.join(
             os.path.dirname(__file__),'sgauto.ui'))
 
-class SGAuto(WID_CLASS, FORM_CLASS):
+class SGAuto(WND_CLASS, FORM_CLASS):
     def __init__(self, parent=None):
         super(SGAuto, self).__init__(parent)
         self.setupUi(self)
@@ -61,7 +61,6 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             self.SET={'SvPaths':{},'BakPath':'','Interval':2000,'LastTS':0, 'AddFilesLast':''}
             return 'Add new files to backup and choose storage folder. Press Start to begin monitoring.'
         else:
-            print("loadSet:", self.SET)
             while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)  #clear monitor file list
             self.populate_lwSGPaths(self.SET['SvPaths'].keys(), init=True)
             self.populate_tabFList(self.SET['BakPath'])
@@ -78,8 +77,8 @@ class SGAuto(WID_CLASS, FORM_CLASS):
                 setfile.close()
                 self.logst('Current settings saved at: %s' % path)
 
-    def yesno(self):
-        return QMessageBox.Yes == QMessageBox.question(self, "Confirm","Are you sure?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+    def yesno(self, message='Are you sure?'):
+        return QMessageBox.Yes == QMessageBox.question(self, "Confirm", message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
        
     def logst(self,string=''):
         dt=str(time.strftime('%y/%m/%d %H:%M'))
@@ -119,7 +118,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
                 else:  
                     self.logst('File %s changed. Processing...' % basename(plik))
                 pf = self.process_files(self.SET['SvPaths'],self.SET['BakPath'])
-                #print("process files returned ", pf)
+
                 fname, tstamp, curdate = pf
                 self.SET['LastTS']=tstamp
                 self.leTStamp.setText(str(tstamp))
@@ -154,7 +153,6 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             print(self.SET['SvPaths'])
         
     def populate_lwSGPaths(self,paths, init=False):
-        print('populate_lwSGPaths got:', paths)
         count=0
         plist=list(paths)
         for path in plist:
@@ -172,7 +170,6 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         if count:
             self.logst('Added %i new file(s).' % count)
             self.force_proc=True
-        print('SvPaths after populate',self.SET['SvPaths'])    
             
     @QtCore.pyqtSlot()
     def on_bAddFiles_clicked(self):
@@ -191,7 +188,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         tab.setItem(tab.rowCount()-1,1,wI(str(dt))) #Date
         tab.setItem(tab.rowCount()-1,2,wI(file)) #Filename
         tab.setItem(tab.rowCount()-1,3,wI(comment)) #Comment
-        tab.resizeColumnsToContents()
+        [ tab.resizeColumnToContents(c) for c in range(3) ]
         tab.scrollToBottom()
 
     def populate_tabFList(self, bp):
@@ -208,7 +205,7 @@ class SGAuto(WID_CLASS, FORM_CLASS):
                  except FileNotFoundError: comment = ''
                  self.add_tabFList(ts,dt,file, comment)
                  self.leTStamp.setText(str(ts))
-            break   #os.walk is generator, break after first yield gives only top dir
+            break   #os.walk is a generator, break after first yield gives only top dir
         self.tabFList.blockSignals(False)
 
     @QtCore.pyqtSlot()
@@ -230,13 +227,13 @@ class SGAuto(WID_CLASS, FORM_CLASS):
             self.bStartStyle=self.bStart.styleSheet()
             self.bStart.setStyleSheet('background-color: red')
             self.saveSet(self.inipath)
-            self.timer.start()
             self.logst('Monitoring selected files every %d seconds.' % int(self.SET['Interval']/1000))
             self.bStart.setText('Stop')
             self.enableWidgets(False)
+            self.timer.start()
         else:
-            self.bStart.setStyleSheet(self.bStartStyle)
             self.timer.stop()
+            self.bStart.setStyleSheet(self.bStartStyle)
             self.bStart.setText('Start')
             self.enableWidgets(True)
             
@@ -273,16 +270,14 @@ class SGAuto(WID_CLASS, FORM_CLASS):
         self.timer.setInterval(self.SET['Interval'])
             
     def closeEvent(self, ev):
-        if QMessageBox.Yes == QMessageBox.question(self, 'Are you sure?', 
-                     'Are you sure?', QMessageBox.Yes, QMessageBox.No):
+        if self.yesno():
             super(SGAuto, self).closeEvent(ev)
         else:
             ev.ignore()
-
 
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     myapp = SGAuto()
     myapp.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
