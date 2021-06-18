@@ -1,0 +1,11 @@
+* What is it:
+    This is a program that lets you monitor and automatically backup selected files if they were modified. 
+    It can be used for savegame backup but also for any other file(s) you need to monitor and backup instantly.
+* Why is it:
+    Because those pesky developers thing they know better how I want to play my game. 
+    So few years back for FTL I wrote simple script to backup it's save files. And then it grew as I needed something new from it.
+    Here you have current version I use for myself.
+* How to use it:
+    If you have Python3 with PyQt5, then you can just copy sgauto.py, sgauto.ui and sgauto.ico to any directory and start it with "python sgauto.py".
+    For Windows you can use provided exe file. It's just bundled version with pyinstaller.
+* TODO: Restoring files from interface.
