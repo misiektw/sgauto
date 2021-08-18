@@ -94,7 +94,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.already_processing=True
             print(tstamp, curdate)
             zipfname='sg'+str(tstamp)+'.sgauto.zip'
-            with zipfile.ZipFile(bakPath+'/'+zipfname,'w') as myzip:
+            with zipfile.ZipFile(bakPath+'/'+zipfname,'w', compression=zipfile.ZIP_DEFLATED) as myzip:
                 for file in sgfList.keys():
                     print('Adding '+file)
                     try:
