@@ -19,12 +19,15 @@
 
 #coding=utf8
 import os, sys, zipfile, time, json, datetime
+fromts = datetime.datetime.fromtimestamp
 from PyQt5 import QtCore, QtWidgets, uic
 from PyQt5.QtWidgets import QMessageBox # pylint: disable=no-name-in-module
+from PyQt5.QtCore import pyqtSlot
 from os.path import basename
 
+
 __DEBUG__ = False
-__VERSION__ = '0.9b'
+__VERSION__ = '1.0a'
 
 FORM_CLASS, WND_CLASS = uic.loadUiType(os.path.join(
             os.path.dirname(__file__),'sgauto.ui'))
@@ -47,7 +50,16 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.logst('You can Add Files to monitor, and select Backup folder.')
         self.logst('Any changes will NOT be saved until Start button is pressed!')
     
-    def loadSet(self,path):
+
+    def updateLabels(self):
+        self.lbTrash.setText('Trash: {} MB'.format(round(self.trashsize/1024/1024)))
+        self.lbSize.setText('Size: {} MB'.format(round(self.bksize/1024/1024)))
+        self.leTStamp.setText(str(self.SET['LastTS']))
+        self.leDate.setText(str(fromts(self.SET['LastTS'])))
+
+    def loadSet(self, path):
+        self.bksize = 0
+        self.trashsize = 0
         try:
             setfile=open(path,'r')
             self.SET=json.load(setfile)
@@ -61,9 +73,11 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.SET={'SvPaths':{},'BakPath':'','Interval':2000,'LastTS':0, 'AddFilesLast':''}
             return 'Add new files to backup and choose storage folder. Press Start to begin monitoring.'
         else:
-            while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)  #clear monitor file list
             self.populate_lwSGPaths(self.SET['SvPaths'].keys(), init=True)
             self.populate_tabFList(self.SET['BakPath'])
+            os.chdir(self.SET['BakPath'])
+            self.trashsize = sum(os.path.getsize('.trash/'+f) for f in os.listdir('.trash'))
+            self.updateLabels()
             return 'Press Start to begin monitoring current files.'
 
     def saveSet(self,path):
@@ -90,9 +104,8 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.logst('Already processing files. Skipping this cycle. Consider setting longer interval.')
         else:
             tstamp=round(time.time())
-            curdate=datetime.datetime.fromtimestamp(tstamp)
             self.already_processing=True
-            print(tstamp, curdate)
+            print(tstamp)
             zipfname='sg'+str(tstamp)+'.sgauto.zip'
             with zipfile.ZipFile(bakPath+'/'+zipfname,'w', compression=zipfile.ZIP_DEFLATED) as myzip:
                 for file in sgfList.keys():
@@ -102,7 +115,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     except IOError:
                         self.logst('Can\'t open {}. Skipping.'.format(file))
             self.already_processing=False
-            return zipfname, tstamp, curdate
+            return zipfname, tstamp
 
     def timer_timeout(self):
         for plik in self.SET['SvPaths'].keys():
@@ -117,13 +130,11 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     self.logst('Forcing processing with new files added...')
                 else:  
                     self.logst('File %s changed. Processing...' % basename(plik))
-                pf = self.process_files(self.SET['SvPaths'],self.SET['BakPath'])
-
-                fname, tstamp, curdate = pf
+                fname, tstamp = self.process_files(self.SET['SvPaths'],self.SET['BakPath'])
                 self.SET['LastTS']=tstamp
-                self.leTStamp.setText(str(tstamp))
-                self.leDate.setText(str(curdate))
-                self.add_tabFList(tstamp,curdate,fname)
+                self.add_tabFList(tstamp, fname)
+                self.bksize = self.bksize + os.path.getsize(fname)
+                self.updateLabels()
                 self.force_proc=False
     
     def enableWidgets(self,enable):
@@ -139,20 +150,21 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                 with open(os.path.join(path,name[:-4]+'.comm.txt'), 'w') as comfile:
                     comfile.write(comment)
 
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bRemove_clicked(self):
-        lob=self.lwSGPaths
         try:
-            entry, row = lob.currentItem().text() , lob.currentRow()
+            entry, row = self.lwSGPaths.currentItem().text() , self.lwSGPaths.currentRow()
         except AttributeError:
             self.logst('Select valid list entry first!!!')
         else:
             self.logst('Removing %s from list.' % entry)
-            lob.takeItem(row)
+            self.lwSGPaths.takeItem(row)
             self.SET['SvPaths'].pop(entry)
             print(self.SET['SvPaths'])
         
-    def populate_lwSGPaths(self,paths, init=False):
+    def populate_lwSGPaths(self, paths, init=False):
+        if init:
+            while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)  #clear monitor file list
         count=0
         plist=list(paths)
         for path in plist:
@@ -171,7 +183,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.logst('Added %i new file(s).' % count)
             self.force_proc=True
             
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bAddFiles_clicked(self):
         try:
             paths=QtWidgets.QFileDialog.getOpenFileNames(self, 'Select files to backup', self.SET['AddFilesLast'])[0]
@@ -181,47 +193,50 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.SET['AddFilesLast']=os.path.dirname(paths[0])
             self.populate_lwSGPaths(paths)
     
-    def add_tabFList(self, ts, dt, file, comment=''):
+    def add_tabFList(self, ts, fname, comment=''):
         tab, wI = self.tabFList, QtWidgets.QTableWidgetItem
         tab.insertRow(tab.rowCount())
-        tab.setItem(tab.rowCount()-1,0,wI('%.0f' % ts)) #Timestamp
-        tab.setItem(tab.rowCount()-1,1,wI(str(dt))) #Date
-        tab.setItem(tab.rowCount()-1,2,wI(file)) #Filename
-        tab.setItem(tab.rowCount()-1,3,wI(comment)) #Comment
-        [ tab.resizeColumnToContents(c) for c in range(3) ]
+        ts = round(ts)
+        tab.setItem(tab.rowCount()-1, 0, wI('%.0f' % ts)) #Timestamp
+        tab.setItem(tab.rowCount()-1, 1, wI(str(fromts(ts)))) #Date
+        tab.setItem(tab.rowCount()-1, 2, wI(fname)) #Filename
+        tab.setItem(tab.rowCount()-1, 3, wI(comment)) #Comment
+        #[ tab.resizeColumnToContents(c) for c in range(3) ]
+        tab.resizeColumnsToContents()
         tab.scrollToBottom()
 
     def populate_tabFList(self, bp):
         while (self.tabFList.rowCount()): self.tabFList.removeRow(0)
         self.tabFList.blockSignals(True)
         self.leBakPath.setText(bp)
-        for _,_,bakfiles in os.walk(bp):
-            for file in bakfiles:
-               if file.rfind('.sgauto.zip')>0:
-                 ts=os.path.getmtime(bp+'/'+file)
-                 dt=datetime.datetime.fromtimestamp(int(ts))
-                 try:
-                     with open(os.path.join(bp, file[:-4]+'.comm.txt')) as comfile: comment= comfile.read()
-                 except FileNotFoundError: comment = ''
-                 self.add_tabFList(ts,dt,file, comment)
-                 self.leTStamp.setText(str(ts))
-            break   #os.walk is a generator, break after first yield gives only top dir
+        
+        for fname in sorted(os.listdir(bp)):
+            if fname.endswith('.sgauto.zip'):
+                ts=os.path.getmtime(bp+'/'+fname)
+                dt=datetime.datetime.fromtimestamp(int(ts))
+                try:
+                   with open(os.path.join(bp, fname[:-4]+'.comm.txt')) as comfile: 
+                       comment= comfile.read()
+                except FileNotFoundError: 
+                       comment = ''
+                self.add_tabFList(ts, fname, comment)
+                self.leTStamp.setText(str(ts))
+                self.bksize = self.bksize + os.path.getsize(os.path.join(bp, fname))
         self.tabFList.blockSignals(False)
+        self.updateLabels()
 
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bBakPath_clicked(self):
-        prevbp=self.SET['BakPath']
-        try:
-            bp=QtWidgets.QFileDialog.getExistingDirectory(self,'Select backup folder for your files.',str(self.SET['BakPath']))
-        except:
-            bp=QtWidgets.QFileDialog.getExistingDirectory(self)
-        if len(bp)>0:
+        prevbp=self.SET.get('BakPath', None)
+        bp = QtWidgets.QFileDialog.getExistingDirectory(self,'Select backup folder for your files.',str(self.SET['BakPath']))
+        if len(bp) > 0:
             self.SET['BakPath']=bp
             self.populate_tabFList(self.SET['BakPath'])
-            if bp!=prevbp:
+            if bp != prevbp:
                 self.force_proc=True
+            os.chdir(self.SET['BakPath'])
     
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bStart_clicked(self):
         if self.bStart.isChecked():
             self.bStartStyle=self.bStart.styleSheet()
@@ -237,43 +252,93 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.bStart.setText('Start')
             self.enableWidgets(True)
             
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bClear_clicked(self):
         if self.yesno():
             while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)
             self.SET['SvPaths'].clear()
 
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bLoadSet_clicked(self):
         filter='SGAuto Config File (*.sgauto.cfg)'
-        try:
-            path=QtWidgets.QFileDialog.getOpenFileName(self, 'Select settings file', self.SET['BakPath'],filter)[0]
-        except KeyError:
-            path=QtWidgets.QFileDialog.getOpenFileName(self,'Select settings file','',filter)[0]
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select settings file', self.SET['BakPath'],filter)
         if len(path)>0:
             self.loadSet(path)
 
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def on_bSaveSet_clicked(self):
         filter='SGAuto Config File (*.sgauto.cfg)'
-        try:
-            path=QtWidgets.QFileDialog.getSaveFileName(self, 'Select settings file', self.SET['BakPath'],filter)[0]
-        except KeyError:
-            path=QtWidgets.QFileDialog.getSaveFileName(self,'Select settings file','',filter)[0]
-        if len(path)>0:
-            self.saveSet(path)
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Select settings file', self.SET['BakPath'],filter)
+        if len(path) > 0:
+            if path.endswith('.sgauto.cfg'):
+                self.saveSet(path)
+            else:
+                self.saveSet(path+'.sgauto.cfg')
     
+    @pyqtSlot()
+    def on_pbRestore_clicked(self):
+        selected = self.tabFList.selectedItems()
+        if len(selected) < 4:
+            self.logst('Select at least one save.')
+            return False
+        elif len(selected) > 4:
+            self.logst('Too many selected saves. Check only one.')
+            return False
+        else:
+            ts, date, fname, comm = [ v.text() for v in  selected]
+            print('Restore', fname)
+            os.chdir(self.SET['BakPath'])
+            with zipfile.ZipFile(fname) as myzip:
+                try:
+                    myzip.extractall('tmpzipout')
+                except PermissionError:
+                    self.logst('Cannot extract files. Maybe other program is blocking it...')
+                    return False
+                else:
+                    self.logst('Extracted backup from {}'.format(fname))
+            return True
+
+
+    @pyqtSlot()
+    def on_pbDelete_clicked(self):
+        tab = self.tabFList
+        selected = tab.selectionModel().selectedRows()
+        os.chdir(self.SET['BakPath'])
+        try: os.mkdir('.trash')
+        except FileExistsError: pass
+        for id in [ v.row() for v in  selected]:
+            ts = tab.item(id, 0).text()
+            fname = tab.item(id, 2).text()
+            print('Delete:', id, ts, fname, fname[:-4]+'.comm.txt')
+            self.trashsize = self.trashsize + os.path.getsize(fname)
+            self.bksize = self.bksize - os.path.getsize(fname)
+            self.updateLabels()
+            os.rename(fname, '.trash/'+fname)
+            try:
+                os.rename(fname[:-4]+'.comm.txt', '.trash/'+fname[:-4]+'.comm.txt')
+            except FileNotFoundError: pass
+            tab.removeRow(id)
+
+    @pyqtSlot()
+    def on_pbRollback_clicked(self):
+        tab = self.tabFList
+        if self.on_pbRestore_clicked():
+            selected = tab.selectionModel().selectedRows()
+            for row in range(tab.rowCount()-1, selected[0].row(), -1):
+                tab.selectRow(row)
+                self.on_pbDelete_clicked()
+
     @QtCore.pyqtSlot(int)
     def on_sbInter_valueChanged(self, interval):
-        #print('Interval changed:', interval)
         self.SET['Interval'] = interval*1000
         self.timer.setInterval(self.SET['Interval'])
             
     def closeEvent(self, ev):
-        if self.yesno():
+        if self.yesno('Program will quit.\nAre you sure?'):
             super(SGAuto, self).closeEvent(ev)
         else:
             ev.ignore()
+
 
 if __name__ == "__main__":
     import sys
