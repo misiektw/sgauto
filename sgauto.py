@@ -18,10 +18,11 @@
 '''
 
 #coding=utf8
-import os, sys, zipfile, time, json, datetime
-fromts = datetime.datetime.fromtimestamp
+import os, sys, zipfile, time, json
+from datetime import datetime
+fromts = datetime.fromtimestamp
 from PyQt5 import QtCore, QtWidgets, uic
-from PyQt5.QtWidgets import QMessageBox # pylint: disable=no-name-in-module
+from PyQt5.QtWidgets import QMessageBox, QListWidgetItem # pylint: disable=no-name-in-module
 from PyQt5.QtCore import pyqtSlot
 from os.path import basename
 
@@ -37,15 +38,18 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         super(SGAuto, self).__init__(parent)
         self.setupUi(self)
         self.setWindowTitle('SGAuto {} {} (C) misiektw(at)gmail.com'.format(__VERSION__,' '*50))
-        self.uspath=os.path.expanduser('~')
-        self.inipath=os.path.join(self.uspath,'sgauto.cfg')
+
+        self.already_processing = False
+        self.force_proc = False
+        self.proctimes = []
+
+        self.uspath = os.path.expanduser('~')
+        self.inipath = os.path.join(self.uspath,'sgauto.cfg')
         inimsg=self.loadSet(self.inipath)
         self.timer = QtCore.QTimer()
         self.timer.setInterval(self.SET['Interval'])
         self.sbInter.setValue(int(self.SET['Interval']/1000))
         self.timer.timeout.connect(self.timer_timeout)
-        self.already_processing=False
-        self.force_proc=False
         self.logst('Application initialized. %s' % inimsg)
         self.logst('You can Add Files to monitor, and select Backup folder.')
         self.logst('Any changes will NOT be saved until Start button is pressed!')
@@ -54,8 +58,10 @@ class SGAuto(WND_CLASS, FORM_CLASS):
     def updateLabels(self):
         self.lbTrash.setText('Trash: {} MB'.format(round(self.trashsize/1024/1024)))
         self.lbSize.setText('Size: {} MB'.format(round(self.bksize/1024/1024)))
-        self.leTStamp.setText(str(self.SET['LastTS']))
-        self.leDate.setText(str(fromts(self.SET['LastTS'])))
+        self.lbTStamp.setText('Last Timestamp:  {}'.format(self.SET['LastTS']))
+        self.lbDate.setText('Last Date:  {}'.format(fromts(self.SET['LastTS'])))
+        if len(self.proctimes) > 1:
+            self.lbAvgProcTime.setText( 'Average proc time:  {:.2f}s'.format(sum(self.proctimes)/len(self.proctimes)) )
 
     def loadSet(self, path):
         self.bksize = 0
@@ -76,7 +82,10 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.populate_lwSGPaths(self.SET['SvPaths'].keys(), init=True)
             self.populate_tabFList(self.SET['BakPath'])
             os.chdir(self.SET['BakPath'])
-            self.trashsize = sum(os.path.getsize('.trash/'+f) for f in os.listdir('.trash'))
+            try: 
+                self.trashsize = sum(os.path.getsize('.trash/'+f) for f in os.listdir('.trash'))
+            except FileNotFoundError:
+                self.trashsize = 0
             self.updateLabels()
             return 'Press Start to begin monitoring current files.'
 
@@ -87,26 +96,26 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                 self.logst('Can\'t write settings file at %s' % path)
                 self.logst('Program may still work fine, but current settings will not be saved.')
             else:
-                json.dump(self.SET, setfile)
+                json.dump(self.SET, setfile, indent=4)
                 setfile.close()
                 self.logst('Current settings saved at: %s' % path)
 
     def yesno(self, message='Are you sure?'):
         return QMessageBox.Yes == QMessageBox.question(self, "Confirm", message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
        
-    def logst(self,string=''):
+    def logst(self, string=''):
         dt=str(time.strftime('%y/%m/%d %H:%M'))
         self.lwStatus.addItem('%s- %s' % (dt,string))
         self.lwStatus.scrollToBottom()
-        
-    def process_files(self,sgfList,bakPath):
+    
+    def process_files(self, tstamp, sgfList, bakPath):
         if self.already_processing==True:
             self.logst('Already processing files. Skipping this cycle. Consider setting longer interval.')
         else:
-            tstamp=round(time.time())
             self.already_processing=True
-            print(tstamp)
-            zipfname='sg'+str(tstamp)+'.sgauto.zip'
+            time.sleep(self.sbWait.value())
+            tstamp = tstamp+self.sbWait.value()
+            zipfname='sg'+str(round(tstamp))+'.sgauto.zip'
             with zipfile.ZipFile(bakPath+'/'+zipfname,'w', compression=zipfile.ZIP_DEFLATED) as myzip:
                 for file in sgfList.keys():
                     print('Adding '+file)
@@ -115,28 +124,42 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     except IOError:
                         self.logst('Can\'t open {}. Skipping.'.format(file))
             self.already_processing=False
-            return zipfname, tstamp
+            self.proctimes.append(round(time.time()) - tstamp)
+            return zipfname, round(tstamp)
 
     def timer_timeout(self):
         for plik in self.SET['SvPaths'].keys():
             try:
                 pmtime=os.path.getmtime(plik)
+            except FileNotFoundError:
+                if self.cbAutoRes.isChecked():
+                    self.logst('File \"{}\" vanished. Autorestoring last save'.format(os.path.basename(plik)))
+                    self.tabFList.selectRow(self.tabFList.rowCount()-1)
+                    self.on_pbRestore_clicked()
+                    self.tabFList.selectionModel().clearSelection()
+                    return False
+                else:
+                    self.logst('File {} is missing!.\n\tRemove it from list or restore from backup. Stopping monitoring.'.format(basename(plik)))
+                    self.bStart.setChecked(False)
+                    self.on_bStart_clicked()
+                    return False
             except Exception as e:
-                self.logst('Got exception from mtime {}.'.format(str(e)))
+                self.logst('Got exception from mtime {}.'.format(str(Exception(e))))
                 self.logst('System error on {} modify time! Skipping this turn.'.format(basename(plik)))
                 return False
             if pmtime > self.SET['LastTS'] or self.force_proc:
                 if self.force_proc:
-                    self.logst('Forcing processing with new files added...')
+                    self.logst('Processing forced...')
+                    self.force_proc=False
                 else:  
                     self.logst('File %s changed. Processing...' % basename(plik))
-                fname, tstamp = self.process_files(self.SET['SvPaths'],self.SET['BakPath'])
-                self.SET['LastTS']=tstamp
+                fname, tstamp = self.process_files(pmtime, self.SET['SvPaths'], self.SET['BakPath'])
                 self.add_tabFList(tstamp, fname)
+                self.SET['LastTS'] = tstamp
+                self.saveSet(self.inipath)
                 self.bksize = self.bksize + os.path.getsize(fname)
                 self.updateLabels()
-                self.force_proc=False
-    
+                
     def enableWidgets(self,enable):
         for w in [ self.bAddFiles, self.bRemove, self.bClear, self.bBakPath, self.sbInter, self.bLoadSet, self.bSaveSet ]:
             w.setEnabled(enable)
@@ -165,23 +188,29 @@ class SGAuto(WND_CLASS, FORM_CLASS):
     def populate_lwSGPaths(self, paths, init=False):
         if init:
             while (self.lwSGPaths.count()): self.lwSGPaths.takeItem(0)  #clear monitor file list
-        count=0
+        count, missing = 0, 0
         plist=list(paths)
         for path in plist:
             if path not in self.SET['SvPaths'].keys() or init:
                 try:
                     mtime=os.path.getmtime(path)
                 except FileNotFoundError:
-                    self.logst('%s not found. Removing from list.' % path)
-                    self.SET['SvPaths'].pop(path)
+                    self.logst('File not found. Remove it from list or restore save: %s' % os.path.basename(path))
+                    #self.SET['SvPaths'].pop(path)
+                    self.SET['SvPaths'][path]=round(time.time())
+                    missing = missing + 1
                 else:
                     self.SET['SvPaths'][path]=mtime
-                    self.lwSGPaths.addItem(path)
-                    count=count+1
-
+                    #self.lwSGPaths.addItem(path)
+                    count = count+1
+                finally:
+                    entry = QListWidgetItem(os.path.basename(path))
+                    entry.setToolTip(os.path.dirname(path))
+                    self.lwSGPaths.addItem(entry)
         if count:
-            self.logst('Added %i new file(s).' % count)
-            self.force_proc=True
+            self.logst('Added %i existing file(s).' % count)
+        if missing:
+            self.logst('Added %i missing file(s).' % missing)
             
     @pyqtSlot()
     def on_bAddFiles_clicked(self):
@@ -212,16 +241,17 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         
         for fname in sorted(os.listdir(bp)):
             if fname.endswith('.sgauto.zip'):
-                ts=os.path.getmtime(bp+'/'+fname)
-                dt=datetime.datetime.fromtimestamp(int(ts))
+                ts=round(os.path.getmtime(bp+'/'+fname))
                 try:
                    with open(os.path.join(bp, fname[:-4]+'.comm.txt')) as comfile: 
                        comment= comfile.read()
                 except FileNotFoundError: 
                        comment = ''
                 self.add_tabFList(ts, fname, comment)
-                self.leTStamp.setText(str(ts))
                 self.bksize = self.bksize + os.path.getsize(os.path.join(bp, fname))
+                self.SET['LastTS']=ts
+        if self.tabFList.rowCount() == 0:   # backup folder empty
+            self.force_proc = True
         self.tabFList.blockSignals(False)
         self.updateLabels()
 
@@ -274,7 +304,40 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                 self.saveSet(path)
             else:
                 self.saveSet(path+'.sgauto.cfg')
-    
+
+    def topDirFromSvPaths(self, fname):
+        for sp in self.SET['SvPaths']:
+            if fname in sp:
+                return sp[:sp.find(fname)] # return topdir
+        return None
+
+    def extractWithTS(self, myzip):
+        for f in myzip.infolist():
+            fname, dt = f.filename, f.date_time
+            date_time = time.mktime(dt + (0, 0, -1))
+            topdir = self.topDirFromSvPaths(fname)
+            if topdir:
+                try:
+                    myzip.extract(fname, topdir)
+                    os.utime(os.path.join(topdir, fname), (date_time, date_time))
+                except PermissionError:
+                    self.logst('Cannot extract: {}.\n\t   Maybe other program is blocking it...'.format(os.path.basename(fname)))
+                    self.logst('Try to extract manually from zip file')
+            else:
+                self.logst('File {} does not match any path in the savelist. Skipping.'.format(fname))
+
+    def restoreSave(self, fname):
+        try:
+            with zipfile.ZipFile(fname) as myzip:
+                self.extractWithTS(myzip)   # myzip.extractall() does not preserve timestamps so...
+        except (FileNotFoundError, PermissionError):
+            self.logst('Cannot open {}.'.format(fname))
+            return False
+        else:
+            self.logst('Extracted backup from {}'.format(fname))
+            self.SET['LastTS']=round(time.time())
+            self.updateLabels()
+            
     @pyqtSlot()
     def on_pbRestore_clicked(self):
         selected = self.tabFList.selectedItems()
@@ -285,19 +348,13 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.logst('Too many selected saves. Check only one.')
             return False
         else:
+            self.blockSignals(True)
             ts, date, fname, comm = [ v.text() for v in  selected]
-            print('Restore', fname)
+            print('Restore', fname, 'Curdir: ', os.curdir)
+            self.restoreSave(fname)
+            self.blockSignals(False)
             os.chdir(self.SET['BakPath'])
-            with zipfile.ZipFile(fname) as myzip:
-                try:
-                    myzip.extractall('tmpzipout')
-                except PermissionError:
-                    self.logst('Cannot extract files. Maybe other program is blocking it...')
-                    return False
-                else:
-                    self.logst('Extracted backup from {}'.format(fname))
             return True
-
 
     @pyqtSlot()
     def on_pbDelete_clicked(self):
