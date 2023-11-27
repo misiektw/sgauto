@@ -104,28 +104,34 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         return QMessageBox.Yes == QMessageBox.question(self, "Confirm", message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
        
     def logst(self, string=''):
-        dt=str(time.strftime('%y/%m/%d %H:%M'))
+        dt=str(time.strftime('%y/%m/%d %H:%M:%S'))
         self.lwStatus.addItem('%s- %s' % (dt,string))
         self.lwStatus.scrollToBottom()
     
+    def ceil(self, number):
+        return int(-(-number//1))
+
     def process_files(self, tstamp, sgfList, bakPath):
         if self.already_processing==True:
             self.logst('Already processing files. Skipping this cycle. Consider setting longer interval.')
         else:
             self.already_processing=True
             time.sleep(self.sbWait.value())
-            tstamp = tstamp+self.sbWait.value()
+            startts = time.time()
             zipfname='sg'+str(round(tstamp))+'.sgauto.zip'
             with zipfile.ZipFile(bakPath+'/'+zipfname,'w', compression=zipfile.ZIP_DEFLATED) as myzip:
                 for file in sgfList.keys():
                     print('Adding '+file)
                     try:
                         myzip.write(file)
+                        fstamp = os.path.getmtime(file)
+                        print("File {} fst: {} ts: {} lastts:{}".format(file, fstamp, tstamp, self.SET['LastTS']))
+                        if fstamp > tstamp: tstamp = fstamp
                     except IOError:
                         self.logst('Can\'t open {}. Skipping.'.format(file))
             self.already_processing=False
-            self.proctimes.append(round(time.time()) - tstamp)
-            return zipfname, round(tstamp)
+            self.proctimes.append(startts - time.time())
+            return zipfname, self.ceil(tstamp)
 
     def timer_timeout(self):
         for plik in self.SET['SvPaths'].keys():
@@ -153,11 +159,11 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     self.force_proc=False
                 else:  
                     self.logst('File %s changed. Processing...' % basename(plik))
-                fname, tstamp = self.process_files(pmtime, self.SET['SvPaths'], self.SET['BakPath'])
-                self.add_tabFList(tstamp, fname)
+                zfname, tstamp = self.process_files(pmtime, self.SET['SvPaths'], self.SET['BakPath'])
+                self.add_tabFList(tstamp, zfname)
                 self.SET['LastTS'] = tstamp
                 self.saveSet(self.inipath)
-                self.bksize = self.bksize + os.path.getsize(fname)
+                self.bksize = self.bksize + os.path.getsize(zfname)
                 self.updateLabels()
                 
     def enableWidgets(self,enable):
@@ -182,7 +188,8 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         else:
             self.logst('Removing %s from list.' % entry)
             self.lwSGPaths.takeItem(row)
-            self.SET['SvPaths'].pop(entry)
+            if entry in self.SET['SvPaths']:
+                self.SET['SvPaths'].pop(entry)
             print(self.SET['SvPaths'])
         
     def populate_lwSGPaths(self, paths, init=False):
