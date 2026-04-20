@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Dialog</class>
- <widget class="QDialog" name="Dialog">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,23 +11,45 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>SGAutoPy</string>
+   <string>Form</string>
   </property>
-  <property name="windowIcon">
-   <iconset>
-    <normaloff>sgauto.ico</normaloff>sgauto.ico</iconset>
-  </property>
-  <widget class="QPushButton" name="bAddFiles">
+  <widget class="QPushButton" name="bClear">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>10</y>
+     <y>70</y>
      <width>75</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text">
-    <string>Add Files</string>
+    <string>Clear</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lbTrash">
+   <property name="geometry">
+    <rect>
+     <x>710</x>
+     <y>297</y>
+     <width>101</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Trash: 0 MB</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="bLoadSet">
+   <property name="geometry">
+    <rect>
+     <x>710</x>
+     <y>530</y>
+     <width>101</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Load Settings</string>
    </property>
   </widget>
   <widget class="QPushButton" name="bBakPath">
@@ -41,19 +63,6 @@
    </property>
    <property name="text">
     <string>Backup Folder</string>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="leBakPath">
-   <property name="geometry">
-    <rect>
-     <x>490</x>
-     <y>10</y>
-     <width>321</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Path to folder that will hold backups.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QPushButton" name="bStart">
@@ -77,6 +86,25 @@
    </property>
    <property name="checkable">
     <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>110</y>
+     <width>41</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>LOG:</string>
    </property>
   </widget>
   <widget class="QTableWidget" name="tabFList">
@@ -145,77 +173,6 @@
     </property>
    </column>
   </widget>
-  <widget class="QListWidget" name="lwSGPaths">
-   <property name="geometry">
-    <rect>
-     <x>90</x>
-     <y>10</y>
-     <width>291</width>
-     <height>81</height>
-    </rect>
-   </property>
-   <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;List of files that will be added to save backup.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="bRemove">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>40</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Remove</string>
-   </property>
-  </widget>
-  <widget class="QGroupBox" name="groupBox">
-   <property name="geometry">
-    <rect>
-     <x>630</x>
-     <y>40</y>
-     <width>51</width>
-     <height>51</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string>Interval</string>
-   </property>
-   <widget class="QSpinBox" name="sbInter">
-    <property name="geometry">
-     <rect>
-      <x>3</x>
-      <y>20</y>
-      <width>42</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="toolTip">
-     <string>Check files after this many seconds.</string>
-    </property>
-    <property name="minimum">
-     <number>1</number>
-    </property>
-    <property name="value">
-     <number>2</number>
-    </property>
-   </widget>
-  </widget>
-  <widget class="QPushButton" name="bClear">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>70</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Clear</string>
-   </property>
-  </widget>
   <widget class="QListWidget" name="lwStatus">
    <property name="enabled">
     <bool>true</bool>
@@ -241,49 +198,17 @@
     <enum>Qt::ElideNone</enum>
    </property>
   </widget>
-  <widget class="QLabel" name="label">
+  <widget class="QLabel" name="lbAvgProcTime">
    <property name="geometry">
     <rect>
-     <x>50</x>
-     <y>110</y>
-     <width>41</width>
+     <x>391</x>
+     <y>76</y>
+     <width>201</width>
      <height>16</height>
     </rect>
    </property>
-   <property name="font">
-    <font>
-     <weight>75</weight>
-     <bold>true</bold>
-    </font>
-   </property>
    <property name="text">
-    <string>LOG:</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="bSaveSet">
-   <property name="geometry">
-    <rect>
-     <x>710</x>
-     <y>560</y>
-     <width>101</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Save Settings</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="bLoadSet">
-   <property name="geometry">
-    <rect>
-     <x>710</x>
-     <y>530</y>
-     <width>101</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Load Settings</string>
+    <string>Average proc time: 0 s</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="gbSave">
@@ -363,6 +288,32 @@
     </property>
    </widget>
   </widget>
+  <widget class="QPushButton" name="bSaveSet">
+   <property name="geometry">
+    <rect>
+     <x>710</x>
+     <y>560</y>
+     <width>101</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Save Settings</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="bAddFiles">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Add Files</string>
+   </property>
+  </widget>
   <widget class="QLabel" name="lbSize">
    <property name="geometry">
     <rect>
@@ -376,30 +327,17 @@
     <string>Size: 0 MB</string>
    </property>
   </widget>
-  <widget class="QLabel" name="lbTrash">
+  <widget class="QListWidget" name="lwSGPaths">
    <property name="geometry">
     <rect>
-     <x>710</x>
-     <y>297</y>
-     <width>101</width>
-     <height>16</height>
+     <x>90</x>
+     <y>10</y>
+     <width>291</width>
+     <height>81</height>
     </rect>
    </property>
-   <property name="text">
-    <string>Trash: 0 MB</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="lbAvgProcTime">
-   <property name="geometry">
-    <rect>
-     <x>391</x>
-     <y>76</y>
-     <width>201</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Average proc time: 0 s</string>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;List of files that will be added to save backup.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBox_4">
@@ -455,6 +393,64 @@
    </property>
    <property name="text">
     <string>Last Date:</string>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="groupBox">
+   <property name="geometry">
+    <rect>
+     <x>630</x>
+     <y>40</y>
+     <width>51</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Interval</string>
+   </property>
+   <widget class="QSpinBox" name="sbInter">
+    <property name="geometry">
+     <rect>
+      <x>3</x>
+      <y>20</y>
+      <width>42</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>Check files after this many seconds.</string>
+    </property>
+    <property name="minimum">
+     <number>1</number>
+    </property>
+    <property name="value">
+     <number>2</number>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QPushButton" name="bRemove">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>40</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Remove</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="leBakPath">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>10</y>
+     <width>321</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Path to folder that will hold backups.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
  </widget>

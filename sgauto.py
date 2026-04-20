@@ -53,6 +53,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.logst('Application initialized. %s' % inimsg)
         self.logst('You can Add Files to monitor, and select Backup folder.')
         self.logst('Any changes will NOT be saved until Start button is pressed!')
+        self.retry_missing_file_count = 3
     
 
     def updateLabels(self):
@@ -144,10 +145,15 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     self.on_pbRestore_clicked()
                     self.tabFList.selectionModel().clearSelection()
                     return False
+                elif self.retry_missing_file_count >= 0:
+                    self.retry_missing_file_count -= 1
+                    self.logst('File \"{}\" vanished. Skipping this turn. Will try {} more times.'.format(os.path.basename(plik), self.retry_missing_file_count))
+                    return False
                 else:
                     self.logst('File {} is missing!.\n\tRemove it from list or restore from backup. Stopping monitoring.'.format(basename(plik)))
                     self.bStart.setChecked(False)
                     self.on_bStart_clicked()
+                    self.retry_missing_file_count = 3
                     return False
             except Exception as e:
                 self.logst('Got exception from mtime {}.'.format(str(Exception(e))))
@@ -239,6 +245,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         tab.setItem(tab.rowCount()-1, 3, wI(comment)) #Comment
         #[ tab.resizeColumnToContents(c) for c in range(3) ]
         tab.resizeColumnsToContents()
+        #tab.horizontalHeader().setStretchLastSection(True)
         tab.scrollToBottom()
 
     def populate_tabFList(self, bp):
@@ -402,7 +409,6 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             super(SGAuto, self).closeEvent(ev)
         else:
             ev.ignore()
-
 
 if __name__ == "__main__":
     import sys
