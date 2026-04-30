@@ -146,7 +146,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         return int(-(-number // 1))
 
     def process_files(self, tstamp, sgfList, bakPath):
-        if self.already_processing == True:
+        if self.already_processing:
             self.logst(
                 "Already processing files. Skipping this cycle. Consider setting longer interval."
             )
@@ -190,7 +190,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     self.tabFList.selectRow(self.tabFList.rowCount() - 1)
                     self.on_pbRestore_clicked()
                     self.tabFList.selectionModel().clearSelection()
-                    return False
+                    return None
                 elif self.retry_missing_file_count >= 0:
                     self.retry_missing_file_count -= 1
                     self.logst(
@@ -198,7 +198,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                             os.path.basename(plik), self.retry_missing_file_count
                         )
                     )
-                    return False
+                    return None
                 else:
                     self.logst(
                         "File {} is missing!.\n\tRemove it from list or restore from backup. Stopping monitoring.".format(
@@ -208,7 +208,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     self.bStart.setChecked(False)
                     self.on_bStart_clicked()
                     self.retry_missing_file_count = 3
-                    return False
+                    return None
             except Exception as e:
                 self.logst("Got exception from mtime {}.".format(str(Exception(e))))
                 self.logst(
@@ -216,7 +216,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                         basename(plik)
                     )
                 )
-                return False
+                return None
             if pmtime > self.SET["LastTS"] or self.force_proc:
                 if self.force_proc:
                     self.logst("Processing forced...")
@@ -256,17 +256,16 @@ class SGAuto(WND_CLASS, FORM_CLASS):
     @pyqtSlot()
     def on_bRemove_clicked(self):
         try:
-            entry, row = (
-                self.lwSGPaths.currentItem().text(),
-                self.lwSGPaths.currentRow(),
-            )
+            item = self.lwSGPaths.currentItem()
+            entry = item.toolTip()
+            row = self.lwSGPaths.currentRow()
         except AttributeError:
             self.logst("Select valid list entry first!!!")
         else:
             self.logst("Removing %s from list." % entry)
             self.lwSGPaths.takeItem(row)
             if entry in self.SET["SvPaths"]:
-                self.SET["SvPaths"].pop(entry)
+                self.SET["SvPaths"].pop(str(entry))
             print(self.SET["SvPaths"])
 
     def populate_lwSGPaths(self, paths, init=False):
@@ -293,7 +292,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     count = count + 1
                 finally:
                     entry = QListWidgetItem(os.path.basename(path))
-                    entry.setToolTip(os.path.dirname(path))
+                    entry.setToolTip(path)
                     self.lwSGPaths.addItem(entry)
         if count:
             self.logst("Added %i existing file(s)." % count)
@@ -458,7 +457,8 @@ class SGAuto(WND_CLASS, FORM_CLASS):
     @pyqtSlot()
     def on_pbRestore_clicked(self):
         selected = self.tabFList.selectedItems()
-        # selectedItems() returns count of selected cells not rows
+        # selectedItems() returns count of selected cells not rows,
+        # but user can select only full row with 4 cells. Qt table flag.
         if len(selected) < 4:
             self.logst("Select at least one save.")
             return False
@@ -484,7 +484,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             os.mkdir(".trash")
         except FileExistsError:
             pass
-        for id in [v.row() for v in selected]:
+        for id in sorted([v.row() for v in selected], reverse=True):
             ts = tab.item(id, 0).text()
             fname = tab.item(id, 2).text()
             print("Delete:", id, ts, fname, fname[:-4] + ".comm.txt")
