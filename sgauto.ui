@@ -17,10 +17,13 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>70</y>
+     <y>77</y>
      <width>75</width>
      <height>23</height>
     </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Clear all files from list.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
     <string>Clear</string>
@@ -48,6 +51,9 @@
      <height>23</height>
     </rect>
    </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load settings from custom location.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
    <property name="text">
     <string>Load Settings</string>
    </property>
@@ -60,6 +66,9 @@
      <width>91</width>
      <height>23</height>
     </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select backup folder for your zipped files.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
     <string>Backup Folder</string>
@@ -81,6 +90,9 @@
      <bold>true</bold>
     </font>
    </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Start monitoring.&lt;/p&gt;&lt;p&gt;Current settings will be saved.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
    <property name="text">
     <string>Start</string>
    </property>
@@ -92,7 +104,7 @@
    <property name="geometry">
     <rect>
      <x>50</x>
-     <y>110</y>
+     <y>120</y>
      <width>41</width>
      <height>16</height>
     </rect>
@@ -180,9 +192,9 @@
    <property name="geometry">
     <rect>
      <x>90</x>
-     <y>100</y>
+     <y>110</y>
      <width>721</width>
-     <height>171</height>
+     <height>161</height>
     </rect>
    </property>
    <property name="autoScroll">
@@ -233,7 +245,7 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string>Restore selected save files.</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Restore selected save file(s) to your game save location.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="text">
      <string>Restore</string>
@@ -243,7 +255,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>100</y>
+      <y>120</y>
       <width>80</width>
       <height>24</height>
      </rect>
@@ -259,7 +271,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>130</y>
+      <y>90</y>
       <width>80</width>
       <height>24</height>
      </rect>
@@ -297,6 +309,9 @@
      <height>23</height>
     </rect>
    </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Save settings to custom location.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
    <property name="text">
     <string>Save Settings</string>
    </property>
@@ -309,6 +324,9 @@
      <width>75</width>
      <height>23</height>
     </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Add some files that you want to monitor changes for.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
     <string>Add Files</string>
@@ -331,7 +349,7 @@
    <property name="geometry">
     <rect>
      <x>90</x>
-     <y>10</y>
+     <y>20</y>
      <width>291</width>
      <height>81</height>
     </rect>
@@ -343,7 +361,7 @@
   <widget class="QGroupBox" name="groupBox_4">
    <property name="geometry">
     <rect>
-     <x>680</x>
+     <x>685</x>
      <y>40</y>
      <width>51</width>
      <height>51</height>
@@ -362,7 +380,7 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string>Wait this many seconds before processing. Can't be more than Interval.</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Wait this many seconds before processing if change was detected. &lt;/p&gt;&lt;p&gt;Can't be more than Interval. Useful for long updates in multiple files.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="value">
      <number>0</number>
@@ -398,7 +416,7 @@
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>630</x>
+     <x>626</x>
      <y>40</y>
      <width>51</width>
      <height>51</height>
@@ -417,7 +435,7 @@
      </rect>
     </property>
     <property name="toolTip">
-     <string>Check files after this many seconds.</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Check files for a change every so often.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="minimum">
      <number>1</number>
@@ -431,10 +449,13 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>40</y>
+     <y>43</y>
      <width>75</width>
      <height>23</height>
     </rect>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Remove files from monitor list.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="text">
     <string>Remove</string>
@@ -451,6 +472,19 @@
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Path to folder that will hold backups.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_2">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>0</y>
+     <width>261</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Monitored files:</string>
    </property>
   </widget>
  </widget>
