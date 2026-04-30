@@ -448,13 +448,17 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.logst("Cannot open {}.".format(fname))
             return False
         else:
+            self.blockSignals(True)
             self.logst("Extracted backup from {}".format(fname))
             self.SET["LastTS"] = round(time.time())
             self.updateLabels()
+            self.blockSignals(False)
+            return True
 
     @pyqtSlot()
     def on_pbRestore_clicked(self):
         selected = self.tabFList.selectedItems()
+        # selectedItems() returns count of selected cells not rows
         if len(selected) < 4:
             self.logst("Select at least one save.")
             return False
@@ -462,13 +466,14 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.logst("Too many selected saves. Check only one.")
             return False
         else:
-            self.blockSignals(True)
             ts, date, fname, comm = [v.text() for v in selected]
             print("Restore", fname, "Curdir: ", os.curdir)
-            self.restoreSave(fname)
-            self.blockSignals(False)
-            os.chdir(self.SET["BakPath"])
-            return True
+            if self.restoreSave(fname):
+                os.chdir(self.SET["BakPath"])
+                return True
+            else:
+                self.logst(f"Restore failed for {fname}!")
+                return False
 
     @pyqtSlot()
     def on_pbDelete_clicked(self):
@@ -503,6 +508,11 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             for row in range(tab.rowCount() - 1, selected[0].row(), -1):
                 tab.selectRow(row)
                 self.on_pbDelete_clicked()
+            self.logst(
+                "Rollback successful, newer files thann selected moved to trash folder."
+            )
+        else:
+            self.logst("Rollback failed! Check earlier messages for reason why.")
 
     @QtCore.pyqtSlot(int)
     def on_sbInter_valueChanged(self, interval):
