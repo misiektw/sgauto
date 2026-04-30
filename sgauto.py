@@ -67,9 +67,17 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.logst("Any changes will NOT be saved until Start button is pressed!")
         self.retry_missing_file_count = 3
 
+    def format_size(self, size_in_bytes):
+        if size_in_bytes < 1024:
+            return "{} B".format(size_in_bytes)
+        elif size_in_bytes < 1024 * 1024:
+            return "{:.2f} KB".format(size_in_bytes / 1024)
+        else:
+            return "{:.2f} MB".format(size_in_bytes / 1024 / 1024)
+
     def updateLabels(self):
-        self.lbTrash.setText("Trash: {} MB".format(round(self.trashsize / 1024 / 1024)))
-        self.lbSize.setText("Size: {} MB".format(round(self.bksize / 1024 / 1024)))
+        self.lbTrash.setText("Trash: {}".format(self.format_size(self.trashsize)))
+        self.lbSize.setText("Size: {}".format(self.format_size(self.bksize)))
         self.lbTStamp.setText("Last Timestamp:  {}".format(self.SET["LastTS"]))
         self.lbDate.setText("Last Date:  {}".format(fromts(self.SET["LastTS"])))
         if len(self.proctimes) > 1:
@@ -82,29 +90,24 @@ class SGAuto(WND_CLASS, FORM_CLASS):
     def loadSet(self, path):
         self.bksize = 0
         self.trashsize = 0
+        default_settings = {
+            "SvPaths": {},
+            "BakPath": "",
+            "Interval": 2000,
+            "LastTS": 0,
+            "AddFilesLast": "",
+        }
         try:
             setfile = open(path, "r")
             self.SET = json.load(setfile)
             self.logst("Found config file at: %s. Loading last settings." % path)
         except IOError:
             self.logst("Config file %s not found. Using default settings" % path)
-            self.SET = {
-                "SvPaths": {},
-                "BakPath": "",
-                "Interval": 2000,
-                "LastTS": 0,
-                "AddFilesLast": "",
-            }
+            self.SET = default_settings
             return "Select files to backup and storage folder. Press Start to begin monitoring."
         except ValueError:
             self.logst("Config file %s is malformed. Using default settings" % path)
-            self.SET = {
-                "SvPaths": {},
-                "BakPath": "",
-                "Interval": 2000,
-                "LastTS": 0,
-                "AddFilesLast": "",
-            }
+            self.SET = default_settings
             return "Add new files to backup and choose storage folder. Press Start to begin monitoring."
         else:
             self.populate_lwSGPaths(self.SET["SvPaths"].keys(), init=True)
