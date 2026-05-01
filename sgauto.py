@@ -90,6 +90,13 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.logst("Failed to load plugin: %s" % str(e))
             self.plugin = None
 
+    def get_dir_size(self, path):
+        try:
+            fullpaths = (os.path.join(path, f) for f in os.listdir(path))
+            return sum(os.path.getsize(f) for f in fullpaths if os.path.isfile(f))
+        except FileNotFoundError:
+            return 0
+
     def format_size(self, size_in_bytes):
         if size_in_bytes < 1024:
             return "{} B".format(size_in_bytes)
@@ -144,12 +151,6 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.populate_lwSGPaths(self.SET["SvPaths"].keys(), init=True)
             self.populate_tabFList(self.SET["BakPath"])
             os.chdir(self.SET["BakPath"])
-            try:
-                self.trashsize = sum(
-                    os.path.getsize(".trash/" + f) for f in os.listdir(".trash")
-                )
-            except FileNotFoundError:
-                self.trashsize = 0
             self.updateLabels()
             if self.SET["PlugFile"]["file"] != "":
                 self.load_plugin()
@@ -175,7 +176,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
 
     def logst(self, string=""):
         dt = str(time.strftime("%y/%m/%d %H:%M:%S"))
-        self.lwStatus.addItem("%s- %s" % (dt, string))
+        self.lwStatus.addItem("{}- {}".format(dt, string))
         self.lwStatus.scrollToBottom()
 
     def ceil(self, number):
@@ -395,7 +396,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         tab, wI = self.tabFList, QtWidgets.QTableWidgetItem
         tab.insertRow(tab.rowCount())
         ts = round(ts)
-        tab.setItem(tab.rowCount() - 1, 0, wI("%.0f" % ts))  # Timestamp
+        tab.setItem(tab.rowCount() - 1, 0, wI("{:.0f}".format(ts)))  # Timestamp
         tab.setItem(tab.rowCount() - 1, 1, wI(str(fromts(ts))))  # Date
         tab.setItem(tab.rowCount() - 1, 2, wI(fname))  # Filename
         tab.setItem(tab.rowCount() - 1, 3, wI(comment))  # Comment
@@ -424,6 +425,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         if self.tabFList.rowCount() == 0:  # backup folder empty
             self.force_proc = True
         self.tabFList.blockSignals(False)
+        self.trashsize = self.get_dir_size(os.path.join(bp, ".trash"))
         self.updateLabels()
 
     @pyqtSlot()
@@ -550,7 +552,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                 os.chdir(self.SET["BakPath"])
                 return True
             else:
-                self.logst(f"Restore failed for {fname}!")
+                self.logst("Restore failed for {}!".format(fname))
                 return False
 
     @pyqtSlot()
