@@ -18,29 +18,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 # coding=utf8
+import importlib.util
 import json
 import os
 import sys
 import time
 import zipfile
 from datetime import datetime
-
-fromts = datetime.fromtimestamp
 from os.path import basename
 
 from PyQt5 import QtCore, QtWidgets, uic
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import (  # pylint: disable=no-name-in-module
+    QFileDialog,
     QListWidgetItem,
     QMessageBox,
 )
 
 __DEBUG__ = False
 __VERSION__ = "1.0a"
-
 FORM_CLASS, WND_CLASS = uic.loadUiType(
     os.path.join(os.path.dirname(__file__), "sgauto.ui")
 )
+fromts = datetime.fromtimestamp
 
 
 class SGAuto(WND_CLASS, FORM_CLASS):
@@ -54,6 +54,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.already_processing = False
         self.force_proc = False
         self.proctimes = []
+        self.plugin = None
 
         self.uspath = os.path.expanduser("~")
         self.inipath = os.path.join(self.uspath, "sgauto.cfg")
@@ -64,8 +65,30 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.timer.timeout.connect(self.timer_timeout)
         self.logst("Application initialized. %s" % inimsg)
         self.logst("You can Add Files to monitor, and select Backup folder.")
-        self.logst("Any changes will NOT be saved until Start button is pressed!")
+        self.logst("Changes will NOT be saved until Start button is pressed!")
         self.retry_missing_file_count = 3
+        self.updateLabels()
+
+    def load_plugin(self):
+        """Load the comment extraction plugin module."""
+        plugin_path = self.SET["PlugFile"]["plug"]
+        if not plugin_path:
+            self.logst("No plugin path set. Skipping plugin loading.")
+            self.plugin = None
+            return
+        try:
+            spec = importlib.util.spec_from_file_location("sgauto_plugin", plugin_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if hasattr(module, "extract_comment"):
+                self.plugin = module.extract_comment
+                self.logst("Plugin loaded from: %s" % plugin_path)
+            else:
+                self.logst("Plugin module has no extract_comment function.")
+                self.plugin = None
+        except Exception as e:
+            self.logst("Failed to load plugin: %s" % str(e))
+            self.plugin = None
 
     def format_size(self, size_in_bytes):
         if size_in_bytes < 1024:
@@ -87,6 +110,13 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                 )
             )
 
+        if self.plugin:
+            self.bAttach.setText("Detach")
+            self.lbAttached.setText("{file} -> {plug}".format(**self.SET["PlugFile"]))
+        else:
+            self.bAttach.setText("Attach")
+            self.lbAttached.setText("None -> {plug}".format(**self.SET["PlugFile"]))
+
     def loadSet(self, path):
         self.bksize = 0
         self.trashsize = 0
@@ -96,6 +126,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             "Interval": 2000,
             "LastTS": 0,
             "AddFilesLast": "",
+            "PlugFile": {"file": "", "plug": ""},
         }
         try:
             setfile = open(path, "r")
@@ -120,6 +151,8 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             except FileNotFoundError:
                 self.trashsize = 0
             self.updateLabels()
+            if self.SET["PlugFile"]["file"] != "":
+                self.load_plugin()
             return "Press Start to begin monitoring current files."
 
     def saveSet(self, path):
@@ -177,7 +210,22 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                         self.logst("Can't open {}. Skipping.".format(file))
             self.already_processing = False
             self.proctimes.append(time.time() - startts)
-            return zipfname, self.ceil(tstamp)
+
+            # Call plugin for comment extraction
+            comment = ""
+            if self.plugin:
+                try:
+                    comment = self.plugin(
+                        self.SET["PlugFile"]["file"], sgfList, self.logst
+                    )
+                    if comment:
+                        comm_file = os.path.join(bakPath, zipfname[:-4] + ".comm.txt")
+                        with open(comm_file, "w") as f:
+                            f.write(comment)
+                except Exception as e:
+                    self.logst("Plugin error: %s" % str(e))
+
+            return zipfname, self.ceil(tstamp), comment
 
     def timer_timeout(self):
         for plik in self.SET["SvPaths"].keys():
@@ -226,10 +274,10 @@ class SGAuto(WND_CLASS, FORM_CLASS):
                     self.force_proc = False
                 else:
                     self.logst("File %s changed. Processing..." % basename(plik))
-                zfname, tstamp = self.process_files(
+                zfname, tstamp, comment = self.process_files(
                     pmtime, self.SET["SvPaths"], self.SET["BakPath"]
                 )
-                self.add_tabFList(tstamp, zfname)
+                self.add_tabFList(tstamp, zfname, comment)
                 self.SET["LastTS"] = tstamp
                 self.saveSet(self.inipath)
                 self.bksize = self.bksize + os.path.getsize(zfname)
@@ -255,6 +303,33 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             if len(comment) > 0:
                 with open(os.path.join(path, name[:-4] + ".comm.txt"), "w") as comfile:
                     comfile.write(comment)
+
+    @pyqtSlot()
+    def on_bAttach_clicked(self):
+        if self.SET["PlugFile"]["file"] != "":
+            # Detach: clear both file and plug
+            self.SET["PlugFile"]["file"] = ""
+            self.plugin = None
+            self.logst("Plugin detached.")
+        else:
+            try:
+                selected_file = self.lwSGPaths.currentItem().toolTip()
+            except AttributeError:
+                self.logst("Select valid list entry first!!!")
+                return
+            plugin_filename, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select script to attach to file",
+                os.path.dirname(self.SET["PlugFile"]["plug"])
+                if self.SET["PlugFile"]["plug"]
+                else "",
+                filter="Python file (*.py)",
+            )
+            if not plugin_filename:
+                return  # User cancelled
+            self.SET["PlugFile"] = {"file": selected_file, "plug": plugin_filename}
+            self.load_plugin()
+        self.updateLabels()
 
     @pyqtSlot()
     def on_bRemove_clicked(self):

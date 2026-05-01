@@ -19,7 +19,19 @@
     Finaly press Start. It will save default config and start monitoring your files.
     If change is detected it will zip all files into backup directory.
 
+* Plugin comments:
+    SGAuto supports automatic comment extraction via Python plugin.
+    When a backup is created, a plugin can read from your monitored files and generate a comment string.
+
+    To use:
+    1. Create a Python file with an extract_comment(file_paths) function
+       (file_paths is a dict mapping file paths to modification timestamps)
+    2. Set "PluginPath" in sgauto.cfg to your plugin file path
+    3. The plugin is called automatically on each backup
+
+    See example_plugin.py for a working example.
+
 * TODO:
-    Extension to extract info from file.
+    Auto resizing. May be too small for 4k.
 
 Get latest version at: https://github.com/misiektw/sgauto
