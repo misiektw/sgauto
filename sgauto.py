@@ -36,7 +36,7 @@ from PyQt5.QtWidgets import (  # pylint: disable=no-name-in-module
 )
 
 __DEBUG__ = False
-__VERSION__ = "1.0b"
+__VERSION__ = "1.0c"
 FORM_CLASS, WND_CLASS = uic.loadUiType(
     os.path.join(os.path.dirname(__file__), "sgauto.ui")
 )
