@@ -2,7 +2,8 @@
 
 * What is it:
     This is a program that lets you monitor and automatically backup selected files if they were modified.
-    It can be used for savegame backup but also for any other file(s) you need to monitor and backup instantly if they change.
+    It can be used for savegame backup but also for any other file(s) you need to monitor and backup instantly
+    if they change.
 
 * Why is it:
     Because those pesky developers think, that they know better how I want to play my game.
@@ -24,9 +25,9 @@
     When a backup is created, a plugin can read from your monitored files and generate a comment string.
 
     To use:
-    1. Create a Python file with an extract_comment(file_paths) function
-       (file_paths is a dict mapping file paths to modification timestamps)
-    2. Set "PluginPath" in sgauto.cfg to your plugin file path
+    1. Create a Python file with an extract_comment(file_path, all_files, log) function
+       (file_path is file you attach your script to)
+    2. Attach your plugin to one of files in monitored list
     3. The plugin is called automatically on each backup
 
     See example_plugin.py for a working example.
