@@ -51,6 +51,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             "SGAuto {} {} (C) misiektw(at)gmail.com".format(__VERSION__, " " * 50)
         )
 
+        self.retry_missing_file_count = 3
         self.already_processing = False
         self.force_proc = False
         self.proctimes = []
@@ -59,15 +60,31 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.uspath = os.path.expanduser("~")
         self.inipath = os.path.join(self.uspath, "sgauto.cfg")
         inimsg = self.loadSet(self.inipath)
+
         self.timer = QtCore.QTimer()
         self.timer.setInterval(self.SET["Interval"])
-        self.sbInter.setValue(int(self.SET["Interval"] / 1000))
         self.timer.timeout.connect(self.timer_timeout)
+        self.sbInter.setValue(int(self.SET["Interval"] / 1000))
+
         self.logst("Application initialized. %s" % inimsg)
         self.logst("You can Add Files to monitor, and select Backup folder.")
         self.logst("Changes will NOT be saved until Start button is pressed!")
-        self.retry_missing_file_count = 3
         self.updateLabels()
+
+    @property
+    def backup_path_ok(self):
+        try:
+            os.chdir(self.SET["BakPath"])
+        except Exception as e:
+            self.logst(
+                "Backup folder path invalid! {}. Exception: {}".format(
+                    self.SET["BakPath"], e
+                )
+            )
+            self.updateLabels()
+            return False
+        else:
+            return True
 
     def load_plugin(self):
         """Load the comment extraction plugin module."""
@@ -150,12 +167,9 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             return "Add new files to backup and choose storage folder. Press Start to begin monitoring."
         else:
             self.populate_lwSGPaths(self.SET["SvPaths"].keys(), init=True)
-            if not os.path.exists(self.SET["BakPath"]):
-                self.logst("Backup path invalid! {}".format(self.SET["BakPath"]))
-                self.updateLabels()
+            if not self.backup_path_ok:
                 return
             self.populate_tabFList(self.SET["BakPath"])
-            os.chdir(self.SET["BakPath"])
             self.updateLabels()
             if self.SET["PlugFile"]["file"] != "":
                 self.load_plugin()
@@ -221,8 +235,9 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             comment = ""
             if self.plugin:
                 try:
-                    comment = self.plugin(
-                        self.SET["PlugFile"]["file"], sgfList, self.logst
+                    # just in case, whatever comes out convert to str
+                    comment = str(
+                        self.plugin(self.SET["PlugFile"]["file"], sgfList, self.logst)
                     )
                     if comment:
                         comm_file = os.path.join(bakPath, zipfname[:-4] + ".comm.txt")
@@ -447,6 +462,10 @@ class SGAuto(WND_CLASS, FORM_CLASS):
 
     @pyqtSlot()
     def on_bStart_clicked(self):
+        if not self.backup_path_ok:
+            self.bStart.setChecked(False)
+            return
+
         if self.bStart.isChecked():
             self.bStartStyle = self.bStart.styleSheet()
             self.bStart.setStyleSheet("background-color: red")
