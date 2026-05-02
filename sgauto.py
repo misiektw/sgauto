@@ -110,6 +110,7 @@ class SGAuto(WND_CLASS, FORM_CLASS):
         self.lbSize.setText("Size: {}".format(self.format_size(self.bksize)))
         self.lbTStamp.setText("Last Timestamp:  {}".format(self.SET["LastTS"]))
         self.lbDate.setText("Last Date:  {}".format(fromts(self.SET["LastTS"])))
+        self.leBakPath.setText(self.SET["BakPath"])
         if len(self.proctimes) > 1:
             self.lbAvgProcTime.setText(
                 "Average proc time:  {:.2f}s".format(
@@ -149,6 +150,10 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             return "Add new files to backup and choose storage folder. Press Start to begin monitoring."
         else:
             self.populate_lwSGPaths(self.SET["SvPaths"].keys(), init=True)
+            if not os.path.exists(self.SET["BakPath"]):
+                self.logst("Backup path invalid! {}".format(self.SET["BakPath"]))
+                self.updateLabels()
+                return
             self.populate_tabFList(self.SET["BakPath"])
             os.chdir(self.SET["BakPath"])
             self.updateLabels()
@@ -410,7 +415,6 @@ class SGAuto(WND_CLASS, FORM_CLASS):
             self.tabFList.removeRow(0)
         self.tabFList.blockSignals(True)
         self.leBakPath.setText(bp)
-
         for fname in sorted(os.listdir(bp)):
             if fname.endswith(".sgauto.zip"):
                 ts = round(os.path.getmtime(bp + "/" + fname))
